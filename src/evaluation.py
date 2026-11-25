@@ -14,13 +14,13 @@ from .data import RANDOM_STATE
 def temporal_train_test_split(ratings, test_ratio=0.2):
     """Split each user's rating history temporally.
 
-    For each user, sort by timestamp:
+    For each user, sort by timestamp (with movieId tie-breaker):
     - older (1 - test_ratio) -> train
     - newest test_ratio -> test
 
     Returns (train_df, test_df).
     """
-    ratings_sorted = ratings.sort_values(by=["userId", "timestamp"]).copy()
+    ratings_sorted = ratings.sort_values(by=["userId", "timestamp", "movieId"]).copy()
 
     # Calculate per-user cutoff index
     train_list = []
@@ -78,7 +78,7 @@ def ndcg_at_k(recommended_movie_ids, ground_truth_movie_ids, k=10):
     if k == 0 or len(ground_truth_movie_ids) == 0:
         return 0.0
 
-    rec_k = recommended_movie_ids[:k]
+    rec_k = list(dict.fromkeys(recommended_movie_ids[:k]))
     dcg = 0.0
     for i, movie_id in enumerate(rec_k):
         if movie_id in ground_truth_movie_ids:

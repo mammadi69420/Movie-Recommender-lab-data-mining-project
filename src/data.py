@@ -152,3 +152,42 @@ def load_ml32m_sample(frac=0.05, dest="data", seed=RANDOM_STATE):
 
     print(f"Kept {len(sampled_users):,} users and {len(ratings):,} ratings.")
     return _clean_tables(ratings, movies, tags, links)
+
+
+def data_quality_report(ratings, movies, tags, links):
+    """Count missing values, duplicates, inconsistent values, and outliers.
+
+    Returns a dictionary of structured summary tables/metrics and prints
+    a concise report for Stage 2 (Data-Quality Report).
+    """
+    null_counts = {
+        "ratings": ratings.isna().sum().to_dict(),
+        "movies": movies.isna().sum().to_dict(),
+        "tags": tags.isna().sum().to_dict(),
+        "links": links.isna().sum().to_dict(),
+    }
+
+    dup_rating_pairs = int(ratings.duplicated(subset=["userId", "movieId"]).sum())
+    dup_movies_title = int(movies.duplicated(subset=["title"]).sum())
+    no_genre_movies = int(movies["genres"].apply(lambda g: len(g) == 0 if isinstance(g, list) else g == "(no genres listed)").sum())
+    invalid_ratings = int(((ratings["rating"] < 0.5) | (ratings["rating"] > 5.0)).sum())
+
+    # Outlier check on user activity (IQR method)
+    user_counts = ratings.groupby("userId")["movieId"].count()
+    q1, q3 = user_counts.quantile(0.25), user_counts.quantile(0.75)
+    iqr = q3 - q1
+    upper_fence = q3 + 1.5 * iqr
+    power_users = int((user_counts > upper_fence).sum())
+
+    report = {
+        "null_counts": null_counts,
+        "duplicate_user_movie_ratings": dup_rating_pairs,
+        "duplicate_movie_titles": dup_movies_title,
+        "movies_without_genres": no_genre_movies,
+        "out_of_range_ratings": invalid_ratings,
+        "user_activity_iqr_upper_fence": float(upper_fence),
+        "power_user_outliers": power_users,
+        "min_user_ratings": int(user_counts.min()),
+        "max_user_ratings": int(user_counts.max()),
+    }
+    return report

@@ -16,7 +16,7 @@ We build three movie recommenders on the MovieLens dataset, compare them in one 
 | **M Wajahat** | Team Member |
 | **Muhammad Abdul Rehman Nosherwani** | Team Member |
 
-**Instructor:** Dr. Zirak Khan  ·  **Lab Engineer:** Daniyal Zaidi
+**Instructor:** Dr. Zirak Khan  ·  **Lab Engineer:** Syed Daniyal Asghar
 
 ---
 
@@ -118,11 +118,11 @@ The app needs a free TMDB API key for posters and movie details.
 - [x] Repository set up (folders, requirements, README, project rules)
 - [x] MovieLens loads in Colab with `load_data()`
 - [x] Project proposal (M0)
-- [ ] Data-quality report and EDA (M1)
-- [ ] Fair test, scores and popularity baseline (M1–M2)
-- [ ] Content-based, collaborative filtering and association rules (M2–M3)
-- [ ] Streamlit app with TMDB posters (M3)
-- [ ] Full comparison and app online (M4)
+- [x] Data-quality report, hypothesis tests, and EDA (M1)
+- [x] Fair test, transformations/PCA note, and popularity baseline (M1–M2)
+- [x] Content-based, collaborative filtering (Item-Item, User-User, SVD), and association rules (M2–M3)
+- [x] Streamlit app with TMDB posters & 3-algorithm interactive explanations (M3)
+- [ ] Full comparison (including RMSE & 32M sample) and app online (M4)
 - [ ] Final report, demo and viva
 
 ---
@@ -139,7 +139,7 @@ The app needs a free TMDB API key for posters and movie details.
 
 ## 📚 Credits and citation
 
-**MovieLens:** F. Maxwell Harper and Joseph A. Konstan. 2015. *The MovieLens Datasets: History and Context.* ACM Transactions on Interactive Intelligent Systems (TiiS) 5, 4, Article 19. https://doi.org/10.1145/2827872
+**MovieLens (GroupLens Research License):** F. Maxwell Harper and Joseph A. Konstan. 2015. *The MovieLens Datasets: History and Context.* ACM Transactions on Interactive Intelligent Systems (TiiS) 5, 4, Article 19. https://doi.org/10.1145/2827872 — Permitted for non-commercial research/educational use under GroupLens license terms.
 
 **TMDB:** This product uses the TMDB API but is not endorsed or certified by TMDB.
 

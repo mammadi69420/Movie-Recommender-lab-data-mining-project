@@ -1,0 +1,18 @@
+# Data & zips (downloaded at runtime, never commit)
+data/
+*.zip
+
+# Python caches
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Streamlit secrets
+.streamlit/secrets.toml
+
+# Jupyter checkpoints
+.ipynb_checkpoints/
+
+# OS files
+.DS_Store
+Thumbs.db

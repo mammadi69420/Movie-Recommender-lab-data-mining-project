@@ -89,7 +89,7 @@ class ReportPDF(FPDF):
         self.set_xy(35, box_y + 23)
         self.set_font("Helvetica", "I", 10)
         self.set_text_color(*self.MID_GRAY)
-        self.cell(self.w - 70, 7, "Instructor: Dr. Zirak Khan  |  Lab Engineer: Daniyal Zaidi", align="C", new_x="LMARGIN", new_y="NEXT")
+        self.cell(self.w - 70, 7, "Instructor: Dr. Zirak Khan  |  Lab Engineer: Syed Daniyal Asghar", align="C", new_x="LMARGIN", new_y="NEXT")
         self.set_y(box_y + 46)
 
         # Team
@@ -651,52 +651,68 @@ def build_report():
     pdf.section_heading("Results & Comparative Analysis")
 
     pdf.body_text(
-        "The four algorithms exhibit fundamentally different recommendation behaviors:"
+        "Evaluated on 120 test users using the 80/20 per-user temporal split (K=10, "
+        "relevance threshold >= 4.0 stars) with explicit temporal leakage checks passed:"
     )
 
     pdf.key_value_table(
-        ["Algorithm", "Personalized?", "Cold-Start?", "Explainability", "Diversity"],
+        ["Algorithm", "Precision@10", "Recall@10", "NDCG@10", "Avg Pop. Count"],
         [
-            ["Popularity", "No", "No issue", "Low", "Low (same for all)"],
-            ["Content-Based", "Yes", "Needs ratings", "High (features)", "Medium"],
-            ["Item-Item kNN", "Yes", "Needs ratings", "Medium", "High"],
-            ["Assoc. Rules", "Yes", "Needs history", "High (rules)", "Low-Medium"],
+            ["Association Rules", "0.0700", "0.0744", "0.0963", "121.88"],
+            ["User-User kNN", "0.0767", "0.0651", "0.0902", "156.76"],
+            ["Item-Item kNN", "0.0617", "0.0748", "0.0810", "136.00"],
+            ["SVD (MF)", "0.0592", "0.0549", "0.0750", "147.73"],
+            ["Popularity Baseline", "0.0183", "0.0215", "0.0349", "79.61"],
+            ["Item-Item kNN (Pearson)", "0.0142", "0.0349", "0.0303", "26.94"],
+            ["Content-Based (TF-IDF)", "0.0033", "0.0024", "0.0030", "11.24"],
         ]
     )
 
     pdf.body_text(
-        "Key observations:\n\n"
-        "1. Popularity Baseline always recommends the same globally popular movies regardless of user. "
-        "It serves as the lower bound for personalization quality.\n\n"
-        "2. Content-Based filtering excels for users with strong genre preferences but tends to create "
-        "a 'filter bubble' - it rarely recommends movies outside the user's established taste profile.\n\n"
-        "3. Collaborative Filtering (kNN) produces the most diverse recommendations by leveraging "
-        "cross-user patterns. It can suggest movies from genres the user hasn't explored, based on "
-        "the behavior of similar users.\n\n"
-        "4. Association Rules are highly interpretable ('users who liked Inception also liked Interstellar') "
-        "but require sufficient co-rating density. For users with niche tastes, few rules may match.\n\n"
-        "5. The temporal split evaluation is stricter than random splits and better reflects "
-        "real-world performance, where we predict future preferences from past behavior."
+        "Key quantitative findings:\n\n"
+        "1. Collaborative & Association methods beat the Popularity baseline (NDCG@10 = 0.0349) "
+        "by 2.1x to 2.8x, led by Association Rules (0.0963) and User-User kNN (0.0902).\n\n"
+        "2. Rating Prediction (RMSE): SVD Matrix Factorization achieved 0.9871 RMSE on the "
+        "withheld test set compared to 1.1011 for the Global Mean baseline.\n\n"
+        "3. Popularity Bias (RQ3): Collaborative methods favor widely-rated hits (avg 136-157 "
+        "ratings), whereas Content-Based surfaces niche long-tail items (avg 11.24 ratings).\n\n"
+        "4. Statistical Hypothesis Tests: Mann-Whitney U tests confirm significant rating "
+        "differences between popular vs. long-tail movies (p = 1.85e-22) and Drama vs. Action "
+        "(p = 2.43e-213); Spearman correlation confirms popularity vs. rating quality (rho = 0.2513)."
     )
 
-    # ========== SECTION 9: CONCLUSION ==========
-    pdf.section_heading("Conclusion & Future Work")
+    # ========== SECTION 9: LIMITATIONS, ETHICS & FUTURE WORK ==========
+    pdf.section_heading("Limitations, Ethics & Future Work")
 
     pdf.body_text(
-        "This project demonstrates that no single recommendation algorithm dominates across all scenarios. "
-        "Popularity baselines provide reliable but generic suggestions. Content-based methods excel for "
-        "niche content discovery within a user's taste profile. Collaborative filtering captures emergent "
-        "community-level preferences. Association rules offer highly interpretable 'also liked' patterns."
+        "Limitations & Ethical Considerations:\n"
+        "  - Cold-Start & Filter Bubbles: CF and FP-Growth fail for users with <5 ratings, while "
+        "content-based filtering can narrow user exposure.\n"
+        "  - Popularity Bias: High-accuracy CF models disproportionately recommend blockbusters.\n"
+        "  - Data & License Constraints: Analysis uses MovieLens latest-small under GroupLens "
+        "non-commercial research terms; no personal user data is collected.\n\n"
+        "Future Work:\n"
+        "  1. Hybrid (Content + CF) recommender with diversity and novelty re-ranking\n"
+        "  2. Full MovieLens 32M sampled scale-up benchmark\n"
+        "  3. Time-decayed user taste modeling"
+    )
+
+    # ========== SECTION 10: CONTRIBUTION & AI DISCLOSURE ==========
+    pdf.section_heading("Team Contributions & AI-Use Disclosure")
+
+    pdf.key_value_table(
+        ["Member", "Role", "Primary Mining & Engineering Ownership"],
+        [
+            ["Aiman Aslam", "Team Leader", "EDA, Data-Quality Report, Hypothesis Tests & Coordination"],
+            ["M Wajahat", "Team Member", "Content-Based (TF-IDF) & Association Rules (FP-Growth)"],
+            ["M. Abdul Rehman Nosherwani", "Team Member", "Collaborative Filtering (kNN, SVD), Evaluation & Web App"],
+        ]
     )
 
     pdf.body_text(
-        "Future work could explore:\n"
-        "  1. Hybrid models that combine content-based and collaborative signals\n"
-        "  2. Deep learning approaches (neural collaborative filtering, autoencoders)\n"
-        "  3. Incorporating temporal dynamics (user taste evolution over time)\n"
-        "  4. A/B testing framework for online evaluation\n"
-        "  5. Context-aware recommendations (time of day, mood, social context)\n"
-        "  6. Scaling to the MovieLens 32M dataset for large-scale evaluation"
+        "AI-Use Disclosure: Generative AI assistants (Claude / Gemini) were used for code "
+        "refactoring, documentation drafting, and debugging in accordance with DS-311 course policy. "
+        "Every team member has reviewed, tested, and can explain all modules."
     )
 
     # ========== SECTION 10: REFERENCES ==========

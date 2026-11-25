@@ -362,9 +362,9 @@ def plot_user_activity(ratings: pd.DataFrame) -> go.Figure:
     """User rating activity distribution highlighting cold-start vs power users."""
     user_counts = ratings["userId"].value_counts().values
 
-    bins = [0, 20, 50, 150, 500, 10000]
-    labels = ["Cold Start (<20)", "Casual (20-50)", "Moderate (50-150)", "Active (150-500)", "Power User (500+)"]
-    categorized = pd.cut(user_counts, bins=bins, labels=labels).value_counts()[labels].reset_index()
+    bins = [0, 20, 50, 150, 500, np.inf]
+    labels = ["Cold Start (<20)", "Casual (20-49)", "Moderate (50-149)", "Active (150-499)", "Power User (500+)"]
+    categorized = pd.cut(user_counts, bins=bins, labels=labels, right=False).value_counts()[labels].reset_index()
     categorized.columns = ["Segment", "UserCount"]
 
     colors = ["#EF4444", "#F59E0B", "#10B981", "#38BDF8", "#A855F7"]
@@ -465,3 +465,69 @@ def get_blockbusters_and_gems(ratings: pd.DataFrame, movies: pd.DataFrame, links
     gems = merged[(merged["vote_count"] >= 35) & (merged["vote_count"] <= 120)].sort_values(by="vote_average", ascending=False).head(top_k)
 
     return blockbusters, gems
+
+
+def run_hypothesis_tests(ratings: pd.DataFrame, movies: pd.DataFrame) -> pd.DataFrame:
+    """Run statistical hypothesis tests answering key EDA questions (Stage 3).
+
+    Tests:
+    1. Popularity vs Rating Quality: Do top-20% most-rated movies receive higher
+       average ratings than long-tail movies? (Mann-Whitney U test)
+    2. Genre Difference (Drama vs Action): Do Drama movies have a different
+       rating distribution than Action movies? (Mann-Whitney U test)
+    3. Popularity-Rating Correlation: Is movie rating count correlated with
+       average rating? (Spearman rank correlation)
+    """
+    from scipy import stats
+
+    movie_stats = ratings.groupby("movieId").agg(
+        rating_count=("rating", "count"),
+        mean_rating=("rating", "mean"),
+    ).reset_index()
+
+    # H1: Popular (top 20% by count) vs Long-tail (bottom 80%)
+    cutoff = movie_stats["rating_count"].quantile(0.80)
+    popular_means = movie_stats[movie_stats["rating_count"] >= cutoff]["mean_rating"]
+    tail_means = movie_stats[movie_stats["rating_count"] < cutoff]["mean_rating"]
+    u_pop, p_pop = stats.mannwhitneyu(popular_means, tail_means, alternative="two-sided")
+
+    # H2: Drama vs Action ratings
+    m_exp = movies[["movieId", "genres"]].explode("genres")
+    drama_ids = set(m_exp[m_exp["genres"] == "Drama"]["movieId"])
+    action_ids = set(m_exp[m_exp["genres"] == "Action"]["movieId"])
+    # Compare movies exclusive to each genre for cleaner independence
+    drama_only = ratings[ratings["movieId"].isin(drama_ids - action_ids)]["rating"]
+    action_only = ratings[ratings["movieId"].isin(action_ids - drama_ids)]["rating"]
+    u_gen, p_gen = stats.mannwhitneyu(drama_only, action_only, alternative="two-sided")
+
+    # H3: Spearman correlation between popularity (count) and mean rating (min 10 ratings)
+    filtered = movie_stats[movie_stats["rating_count"] >= 10]
+    rho, p_rho = stats.spearmanr(filtered["rating_count"], filtered["mean_rating"])
+
+    results = pd.DataFrame([
+        {
+            "Hypothesis": "H1: Popular (top 20%) vs Long-tail movie mean ratings",
+            "Test": "Mann-Whitney U",
+            "Statistic": f"U = {u_pop:,.1f}",
+            "p_value": float(p_pop),
+            "Group_Summary": f"Popular mean={popular_means.mean():.3f} vs Tail mean={tail_means.mean():.3f}",
+            "Significant (alpha=0.05)": bool(p_pop < 0.05),
+        },
+        {
+            "Hypothesis": "H2: Drama-only vs Action-only movie ratings",
+            "Test": "Mann-Whitney U",
+            "Statistic": f"U = {u_gen:,.1f}",
+            "p_value": float(p_gen),
+            "Group_Summary": f"Drama mean={drama_only.mean():.3f} vs Action mean={action_only.mean():.3f}",
+            "Significant (alpha=0.05)": bool(p_gen < 0.05),
+        },
+        {
+            "Hypothesis": "H3: Movie popularity (count) vs average rating (>=10 ratings)",
+            "Test": "Spearman r",
+            "Statistic": f"rho = {rho:.4f}",
+            "p_value": float(p_rho),
+            "Group_Summary": f"n={len(filtered)} movies",
+            "Significant (alpha=0.05)": bool(p_rho < 0.05),
+        },
+    ])
+    return results

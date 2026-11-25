@@ -358,6 +358,13 @@ st.markdown("""
         border-color: #A855F7;
         box-shadow: 0 6px 28px rgba(168, 85, 247, 0.25);
     }
+    .section-panel-ar {
+        border: 2px solid rgba(245, 158, 11, 0.5);
+    }
+    .section-panel-ar:hover {
+        border-color: #F59E0B;
+        box-shadow: 0 6px 28px rgba(245, 158, 11, 0.25);
+    }
     .section-header {
         display: flex;
         align-items: center;
@@ -370,6 +377,9 @@ st.markdown("""
     }
     .section-header-cf {
         border-bottom: 2px solid rgba(168, 85, 247, 0.4);
+    }
+    .section-header-ar {
+        border-bottom: 2px solid rgba(245, 158, 11, 0.4);
     }
     .section-icon {
         font-size: 1.6rem;
@@ -385,6 +395,9 @@ st.markdown("""
     }
     .section-title-cf {
         color: #A855F7 !important;
+    }
+    .section-title-ar {
+        color: #F59E0B !important;
     }
     .section-desc {
         font-size: 0.82rem;
@@ -509,8 +522,9 @@ def load_and_prepare_models():
     # 1. Popularity Baseline
     pop_model = PopularityRecommender().fit(train_ratings, movies)
 
-    # 2. Content-Based
-    cb_model = ContentBasedRecommender(max_features=4000).fit(movies, tags, train_ratings)
+    # 2. Content-Based (filter tags to train cutoff to prevent temporal leakage)
+    train_tags = tags[tags["timestamp"] <= train_ratings["timestamp"].max()]
+    cb_model = ContentBasedRecommender(max_features=4000).fit(movies, train_tags, train_ratings)
 
     # 3. Collaborative Filtering (Item-Item kNN)
     knn_model = ItemItemKNNRecommender(n_neighbors=15).fit(train_ratings, movies)
@@ -611,6 +625,9 @@ def render_movie_grid(movies_list, cols_count=5, algorithm=""):
                         <div class="rank-tooltip">{tooltip_text}</div>
                     </div>
                     ''', unsafe_allow_html=True)
+                    explanation = row.get("explanation", "")
+                    if isinstance(explanation, str) and explanation.strip():
+                        st.caption(f"💡 {explanation}")
                     with st.popover("📖 Synopsis"):
                         st.write(f"**{title}**")
                         st.write(details["overview"])
@@ -915,26 +932,25 @@ elif app_mode == "⭐ Rate Movies (Interactive)":
     """, unsafe_allow_html=True)
 
     if len(user_ratings) < 1:
-        st.info("Please give at least 1 star rating to any movie above to generate personalized recommendations!")
+        st.info("Please rate at least 1 movie above (5+ recommended) to generate personalized side-by-side recommendations!")
     else:
-        col1, col_div, col2 = st.columns([1, 0.04, 1])
+        if len(user_ratings) < 5:
+            st.warning(f"You have rated {len(user_ratings)} movie(s). Rate at least 5 movies for the best personalization across all 3 algorithms.")
+        col1, col2, col3 = st.columns(3)
         with col1:
             st.markdown('''
             <div class="section-panel section-panel-cb">
                 <div class="section-header section-header-cb">
                     <span class="section-icon">🧬</span>
                     <div>
-                        <div class="section-title section-title-cb">Content-Based Suggestions</div>
-                        <div class="section-desc">Matches by genre, title & tag similarity (TF-IDF cosine)</div>
+                        <div class="section-title section-title-cb">1. Content-Based</div>
+                        <div class="section-desc">Genre, title & tag similarity (TF-IDF cosine)</div>
                     </div>
                 </div>
             </div>
             ''', unsafe_allow_html=True)
             cb_recs = state["cb_model"].recommend(user_rated_dict=user_ratings, n=5)
-            render_movie_grid(cb_recs, cols_count=3, algorithm="content_based")
-
-        with col_div:
-            st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
+            render_movie_grid(cb_recs, cols_count=1, algorithm="content_based")
 
         with col2:
             st.markdown('''
@@ -942,14 +958,35 @@ elif app_mode == "⭐ Rate Movies (Interactive)":
                 <div class="section-header section-header-cf">
                     <span class="section-icon">👥</span>
                     <div>
-                        <div class="section-title section-title-cf">Collaborative Filtering (kNN)</div>
-                        <div class="section-desc">Based on what similar users enjoyed (item-item kNN)</div>
+                        <div class="section-title section-title-cf">2. Collaborative (kNN)</div>
+                        <div class="section-desc">Item-item similarity from user ratings</div>
                     </div>
                 </div>
             </div>
             ''', unsafe_allow_html=True)
             knn_recs = state["knn_model"].recommend(user_id=None, n=5, user_rated_dict=user_ratings)
-            render_movie_grid(knn_recs, cols_count=3, algorithm="collaborative")
+            render_movie_grid(knn_recs, cols_count=1, algorithm="collaborative")
+
+        with col3:
+            st.markdown('''
+            <div class="section-panel section-panel-ar">
+                <div class="section-header section-header-ar">
+                    <span class="section-icon">🛒</span>
+                    <div>
+                        <div class="section-title section-title-ar">3. Association Rules</div>
+                        <div class="section-desc">FP-Growth rules from movies rated ≥ 4.0★</div>
+                    </div>
+                </div>
+            </div>
+            ''', unsafe_allow_html=True)
+            liked_mids = {mid for mid, r in user_ratings.items() if r >= 4.0}
+            ar_recs = state["ar_model"].recommend(user_id=None, n=5, user_liked_movies=liked_mids)
+            if ar_recs.empty:
+                st.info("Rate at least 1–2 movies ≥ 4.0 ★ to trigger FP-Growth association rules. Showing Popularity fallback:")
+                ar_recs = state["pop_model"].recommend(user_id=None, n=5, user_rated_movies=set(user_ratings.keys()))
+                render_movie_grid(ar_recs, cols_count=1, algorithm="popularity")
+            else:
+                render_movie_grid(ar_recs, cols_count=1, algorithm="association_rules")
 
 
 # --- PAGE 3: About & Team ---

@@ -141,4 +141,25 @@ class ContentBasedRecommender:
 
         res = self.movies_df.iloc[rec_indices].copy()
         res["score"] = scores[rec_indices]
+
+        # Build "Because you liked ..." explanation using positively rated movies
+        liked_pairs = [
+            (i, mid)
+            for i, mid in enumerate(user_ratings_map.keys())
+            if mid in self.movie_id_to_idx and user_ratings_map[mid] >= 3.5
+        ]
+        title_map = dict(zip(self.movies_df["movieId"], self.movies_df["title"]))
+        explanations = []
+        if liked_pairs and rec_indices:
+            rec_vecs = self.tfidf_matrix[rec_indices]
+            liked_mat_indices = [self.movie_id_to_idx[mid] for _, mid in liked_pairs]
+            liked_vecs = self.tfidf_matrix[liked_mat_indices]
+            pair_sims = linear_kernel(rec_vecs, liked_vecs)
+            best_pos = np.argmax(pair_sims, axis=1)
+            for pos in best_pos:
+                _, src_mid = liked_pairs[pos]
+                explanations.append(f"Because you liked {title_map.get(src_mid, f'Movie #{src_mid}')}")
+        else:
+            explanations = ["Matches your selected movie profile"] * len(rec_indices)
+        res["explanation"] = explanations
         return res

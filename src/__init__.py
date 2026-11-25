@@ -1,6 +1,6 @@
 """MovieLens data loading, models, evaluation, and TMDB integration."""
 
-from .data import load_data, download_movielens_small, load_ml32m_sample, RANDOM_STATE
+from .data import load_data, download_movielens_small, load_ml32m_sample, data_quality_report, RANDOM_STATE
 from .evaluation import (
     temporal_train_test_split,
     evaluate_recommender,
@@ -11,7 +11,7 @@ from .evaluation import (
 )
 from .popularity import PopularityRecommender
 from .content_based import ContentBasedRecommender
-from .collaborative import ItemItemKNNRecommender, SVDRecommender
+from .collaborative import ItemItemKNNRecommender, UserUserKNNRecommender, SVDRecommender
 from .association_rules import AssociationRuleRecommender
 from .tmdb import fetch_movie_details, get_tmdb_api_key
 from .eda import (
@@ -25,6 +25,7 @@ from .eda import (
     plot_user_activity,
     plot_temporal_trends,
     get_blockbusters_and_gems,
+    run_hypothesis_tests,
 )
 
 __all__ = [
